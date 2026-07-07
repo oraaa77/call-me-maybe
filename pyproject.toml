@@ -1,0 +1,50 @@
+[project]
+name = "call-me-maybe"
+version = "0.1.0"
+description = "A lightweight local LLM wrapper"
+requires-python = ">=3.10"
+
+dependencies = [
+    # The final version of PyTorch that supports Intel Macs
+    "torch==2.2.2",
+    # Must be downgraded so it doesn't crash PyTorch 2.2.2
+    "numpy<2",
+    # Must be downgraded so it accepts PyTorch 2.2.2
+    "transformers<4.45.0",
+    "tokenizers<0.20.0",
+    "huggingface-hub>=0.24.0",
+    "accelerate",
+    "pydantic>=2.13.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["llm_sdk"]
+
+
+# toml cuda
+# [project]
+# name = "call-me-maybe"
+# version = "0.1.0"
+# description = "A lightweight local LLM wrapper"
+# requires-python = ">=3.10"
+# 
+# dependencies = [
+#     # On repasse aux toutes dernières versions (qui supportent Linux et NVIDIA)
+#     "torch>=2.4.0", 
+#     "transformers>=4.45.0", 
+#     "tokenizers>=0.20.0",
+#     "huggingface-hub>=0.24.0", 
+#     "accelerate",
+#     "pydantic>=2.13.4",
+# ]
+# 
+# [build-system]
+# requires = ["hatchling"]
+# build-backend = "hatchling.build"
+# 
+# [tool.hatch.build.targets.wheel]
+# packages = ["llm_sdk"] 

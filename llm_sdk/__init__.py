@@ -52,7 +52,9 @@ class Small_LLM_Model:
 
         # --- load tokenizer & model -------------------------------------------------
         self._tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(
-            model_name, trust_remote_code=trust_remote_code
+            model_name,
+            trust_remote_code=trust_remote_code,
+            use_fast=False
         )
         if self._tokenizer.pad_token_id is None:
             # ensure we have a pad token to keep batch helpers happy
