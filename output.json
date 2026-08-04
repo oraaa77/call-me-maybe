@@ -4,7 +4,7 @@
     "function_call": {
       "function_name": "fn_get_square_root",
       "arguments": {
-        "a": 16.0
+        "a": 16
       }
     }
   },
@@ -33,18 +33,16 @@
       "arguments": {
         "source_string": "Hello 34 I am 233 years old",
         "regex": "NUMBERS",
-        "replacement": "numbers"
+        "replacement": "1234567890"
       }
     }
   },
   {
     "prompt": "Replace all vowels in 'Programming is fun' with asterisks",
     "function_call": {
-      "function_name": "fn_substitute_string_with_regex",
+      "function_name": "fn_reverse_string",
       "arguments": {
-        "source_string": "Programming is fun",
-        "regex": "vowels",
-        "replacement": "*"
+        "s": "Programming is fun"
       }
     }
   },
@@ -62,18 +60,20 @@
   {
     "prompt": "What is the sum of 2 and 3?",
     "function_call": {
-      "function_name": "fn_get_square_root",
+      "function_name": "fn_add_numbers",
       "arguments": {
-        "a": 2.0
+        "a": 2,
+        "b": 3
       }
     }
   },
   {
     "prompt": "What is the sum of 265 and 345?",
     "function_call": {
-      "function_name": "fn_get_square_root",
+      "function_name": "fn_add_numbers",
       "arguments": {
-        "a": 265.0
+        "a": 265,
+        "b": 345
       }
     }
   },
@@ -100,8 +100,8 @@
     "function_call": {
       "function_name": "fn_multiply_numbers",
       "arguments": {
-        "a": 3.0,
-        "b": 5.0
+        "a": 3,
+        "b": 5
       }
     }
   },
@@ -110,8 +110,8 @@
     "function_call": {
       "function_name": "fn_multiply_numbers",
       "arguments": {
-        "a": 12.0,
-        "b": 4.0
+        "a": 12,
+        "b": 4
       }
     }
   },
