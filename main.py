@@ -187,7 +187,7 @@ def main():
         question = item.get("prompt", "")
         if not question:
             continue
-            
+
         print(f"\n[Question] : {question}")
         print("[Génération] : ", end="")
         
