@@ -1,7 +1,6 @@
-from srcc.models import FunctionDefinition, TestPrompt, Argument, Returns
+from srcc.models import FunctionDefinition, TestPrompt, Argument
 from typing import Dict, List, Any
 import json
-import os
 
 
 class Parser:
@@ -17,29 +16,24 @@ class Parser:
     def functions(self) -> List[FunctionDefinition]:
         fns: List[FunctionDefinition] = []
 
-        # J'ai renommé la fonction pour plus de clarté
-        def extract_args_and_returns(function: Dict[str, Any]) -> List[Argument]:
-            arguments: List[Argument] = [] # Correction de la syntaxe ici
-            # On utilise bien 'function' et non 'fn'
-            
-            try: 
-                # J'ai renommé les variables pour éviter les conflits
+        def extract_args(function: Dict[str, Any]) -> List[Argument]:
+            arguments: List[Argument] = []
+            try:
                 for arg_name, arg_data in function["parameters"].items():
-                    arg: Argument = Argument(name=arg_name, type=arg_data["type"])
+                    arg: Argument = Argument(name=arg_name,
+                                             type=arg_data["type"])
                     arguments.append(arg)
             except Exception as e:
                 print(f"Erreur extraction arguments: {e}")
             return arguments
 
-
         try:
             with open(self.path_to_fn, "r") as f:
                 fn_list: List[Dict[str, Any]] = json.load(f)
-                
+
                 for fn in fn_list:
-                    # On passe bien 'fn' (le dictionnaire) et pas 'fn_list' !
-                    param = extract_args_and_returns(fn)
-                    
+                    param = extract_args(fn)
+
                     fn_def: FunctionDefinition = FunctionDefinition(
                         name=fn["name"],
                         parameters=param,
@@ -49,7 +43,7 @@ class Parser:
                     fns.append(fn_def)
         except Exception as e:
             print(f"Erreur chargement JSON: {e}")
-            
+
         return fns
 
     @property
@@ -67,6 +61,7 @@ class Parser:
             print(e)
         return tests
 
+
 if __name__ == "__main__":
     parse = Parser()
     for fn in parse.functions:
@@ -75,4 +70,3 @@ if __name__ == "__main__":
         for args in fn.parameters:
             print(f"arg {i} {args.name}: {args.type} ")
             i += 1
-

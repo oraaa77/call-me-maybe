@@ -1,34 +1,50 @@
-from llm_sdk_copy import Small_LLM_Model
+from llm_sdk.llm_sdk import Small_LLM_Model
 from srcc.parser import Parser
-from typing import List, Dict, Any
+from srcc.state_machine import DynamicJSONFSM
+
 
 class Call_Me_Maybe(Small_LLM_Model):
-    def __init__(self, data: Parser) -> None:
+    def __init__(self, data: Parser, model_name: str = "Qwen/Qwen3-0.6B") -> None:
         self.functions = data.functions
         self.tests = data.tests
+        self.fsm = DynamicJSONFSM()
 
     @property
     def prompt(self) -> str:
-        prompt = "You are an expert AI translating natural language to strict JSON function calls.\n\n"
+        """
+        Génèration dynamique du prompt.
+        """
+        prompt = ("You are an expert AI translating natural "
+                  + "language to strict JSON function calls.\n\n")
 
         # --- 1. RÈGLES GÉNÉRALES (Agnostiques) ---
         prompt += "RULES:\n"
         prompt += "1. Analyze the user's core intent.\n"
         prompt += "2. Match the intent to the closest available function.\n"
-        prompt += "3. Extract arguments strictly matching the required types (e.g., convert words to numbers if a float is expected).\n\n"
+        prompt += ("3. Extract arguments strictly matching the required "
+                   + "types (e.g., convert words to numbers "
+                   + "if a float is expected).\n\n")
+        prompt += ("4. Copy string arguments exactly from the user input.\n")
+        prompt += ("5. Do not paraphrase, normalize, "
+                   + "expand, or rewrite string arguments.\n")
+        prompt += ("6. Preserve apostrophes, capitalization, "
+                   + "spaces, and punctuation exactly.\n\n")
 
         prompt += "Available functions:\n"
 
         # --- 2. EXTRACTION DYNAMIQUE DES FONCTIONS ---
         for fn in self.functions:
             # On crée un indice naturel (ex: fn_add_numbers -> "add numbers")
+            nom_naturel = fn["name"].replace("fn_", "").replace("_", " ")
 
             args_list = []
-            for arg in fn.parameters:
-                args_list.append(f"{arg.name}: {arg.type}")
+            for arg_name, arg_definition in fn["parameters"].items():
+                arg_type = arg_definition["type"]
+                args_list.append(f"{arg_name}: {arg_type}")
 
             args_str = ", ".join(args_list)
-            prompt += f"- {fn.name}({args_str}) -> {fn.returns} (Hint: Use this to {fn.description})\n"
+            return_type = fn["returns"]["type"]
+            prompt += f"- {fn['name']}({args_str}) -> {return_type} (Hint: Use this to {nom_naturel})\n"
 
         prompt += "\nOutput a strict JSON object with 'function_name' and 'arguments'.\n"
 
@@ -47,6 +63,7 @@ class Call_Me_Maybe(Small_LLM_Model):
         prompt += '\nOutput:\n{"function_name": "fn_modify_list", "arguments": {"old_item": "apple", "new_item": "banana"}}\n'
 
         return prompt
+
 
 if __name__ == "__main__":
     parse = Parser()

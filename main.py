@@ -4,7 +4,7 @@ import re
 import sys
 
 from llm_sdk.llm_sdk import Small_LLM_Model
-from src.state_machine import DynamicJSONFSM
+from srcc.state_machine import DynamicJSONFSM
 
 MODEL_NAME = "Qwen/Qwen3-0.6B"
 
@@ -173,7 +173,7 @@ def generer_appel_fonction(model, fsm, id_to_text, vocab_size, system_prompt, qu
             fsm_cache[text] = fsm.get_allowed_characters(text)
         return fsm_cache[text]
 
-    for etape in range(max_tokens):
+    for _ in range(max_tokens):
         generated_ids = input_ids[prompt_length:]
         current_generated_text = model.decode(generated_ids)
 
@@ -187,7 +187,6 @@ def generer_appel_fonction(model, fsm, id_to_text, vocab_size, system_prompt, qu
         if hasattr(logits, "tolist"):
             logits = logits.tolist()
 
-        # Sécurité : Extraire le dernier jeton si logits est un tableau 2D/3D
         while len(logits) > 0 and isinstance(logits[0], list):
             logits = logits[-1]
 
