@@ -4,10 +4,10 @@ from typing import List, Dict, Any
 class DynamicJSONFSM:
     def __init__(self, function_definitions: List[Dict[str, Any]]):
         # Indexation des fonctions pour une recherche O(1)
-        self.functions = {f["fn_name"]: f for f in function_definitions}
+        self.functions = {f["name"]: f for f in function_definitions}
         self.prefix_start = '{"function_name": "'
         self.prefix_args = '", "arguments": {'
-        
+
         # Base de caractères pour les chaînes de caractères (str)
         self.string_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-.,!?@#$%^&*()[]{}+=|\\/<>"
 
@@ -39,7 +39,7 @@ class DynamicJSONFSM:
 
         fn_name = text_after_start.split('"')[0]
         if fn_name not in self.functions:
-            return [] 
+            return []
 
         # ---------------------------------------------------------
         # ÉTAPE 3 : Forcer la transition vers les arguments
@@ -55,13 +55,30 @@ class DynamicJSONFSM:
         # ---------------------------------------------------------
         args_text = text[len(expected_prefix):]
         func_def = self.functions[fn_name]
-        
-        return self._trace_arguments(args_text, func_def["args_names"], func_def["args_types"])
+
+        parameters = func_def["parameters"]
+        arg_names = list(parameters)
+        arg_types = {
+            arg_name: self._normalise_type(arg_definition["type"])
+            for arg_name, arg_definition in parameters.items()
+        }
+        return self._trace_arguments(args_text, arg_names, arg_types)
+
+    @staticmethod
+    def _normalise_type(arg_type: str) -> str:
+        """Convert schema types to the types understood by the FSM."""
+        if arg_type == "number":
+            return "float"
+        if arg_type == "integer":
+            return "int"
+        if arg_type == "string":
+            return "str"
+        return arg_type
 
     def _trace_arguments(self, args_text: str, arg_names: List[str], arg_types: Dict[str, str]) -> List[str]:
         """Analyse le texte généré pour savoir exactement où l'on en est dans la séquence des arguments."""
         current_idx = 0
-        
+
         for i, arg_name in enumerate(arg_names):
             # 4a. Forcer la clé de l'argument (ex: "a": )
             key_str = f'"{arg_name}": '
@@ -70,25 +87,25 @@ class DynamicJSONFSM:
                 if key_str.startswith(args_text[current_idx:]):
                     return [remaining[0]]
                 return []
-                
+
             if args_text[current_idx:current_idx+len(key_str)] != key_str:
                 return []
             current_idx += len(key_str)
-            
+
             # 4b. Gérer la valeur selon son type strict
             arg_type = arg_types[arg_name]
             is_last_arg = (i == len(arg_names) - 1)
             terminator = '}' if is_last_arg else ', '
-            
+
             if arg_type in ("int", "float"):
                 allowed_chars = set("0123456789")
                 if arg_type == "float": allowed_chars.add(".")
                 allowed_chars.add("-")
-                    
+
                 val_start = current_idx
                 while current_idx < len(args_text) and args_text[current_idx] in allowed_chars:
                     current_idx += 1
-                    
+
                 if current_idx < len(args_text):
                     remaining = args_text[current_idx:]
                     if terminator.startswith(remaining):
@@ -115,7 +132,7 @@ class DynamicJSONFSM:
                 if current_idx == len(args_text): return ['"']
                 if args_text[current_idx] != '"': return []
                 current_idx += 1
-                
+
                 string_closed = False
                 in_escape = False
                 while current_idx < len(args_text):
@@ -127,10 +144,10 @@ class DynamicJSONFSM:
                         current_idx += 1
                         break
                     current_idx += 1
-                    
+
                 if not string_closed:
                     return list(self.string_chars) + ['"']
-                
+
                 if current_idx < len(args_text):
                     remaining = args_text[current_idx:]
                     if terminator.startswith(remaining):
@@ -147,7 +164,7 @@ class DynamicJSONFSM:
                         return []
                 else:
                     return [terminator[0]]
-                    
+
             elif arg_type == "bool":
                 remaining = args_text[current_idx:]
                 matched_bool = None
@@ -155,7 +172,7 @@ class DynamicJSONFSM:
                     if remaining.startswith(b_val):
                         matched_bool = b_val
                         break
-                        
+
                 if matched_bool:
                     current_idx += len(matched_bool)
                     remaining = args_text[current_idx:]
@@ -187,5 +204,5 @@ class DynamicJSONFSM:
             return ['}']
         elif current_idx + 1 == len(args_text) and args_text[current_idx] == '}':
             return [] # JSON Parfait, on arrête la génération !
-            
+
         return []

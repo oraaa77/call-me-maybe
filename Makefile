@@ -3,7 +3,7 @@ VENV = call-me-maybe
 PYTHON = $(VENV)/bin/python
 PIP = $(VENV)/bin/pip
 PYINSTALLER = $(VENV)/bin/pyinstaller
-MAIN = pac-man.py
+MAIN = main.py
 CONFIG = config.json
 FLAKE8_EXCLUDE = $(VENV),mazegenerator.py,.mypy_cache,.mypy.ini,__pycache__,build,dist,*.spec
 MYPY_EXCLUDE = '(mazegenerator\.py|build|dist|.*\.spec)'
@@ -26,7 +26,7 @@ run:
 debug:
 	$(PYTHON) -m pdb $(MAIN) $(CONFIG)
 
-# Suppression des fichiers temporaires et des caches 
+# Suppression des fichiers temporaires et des caches
 clean:
 	rm -rf __pycache__ .mypy_cache */__pycache__ build dist *.spec
 
