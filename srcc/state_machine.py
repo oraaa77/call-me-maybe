@@ -1,10 +1,10 @@
 from typing import List, Dict, Any
-
+from srcc.models import FunctionDefinition
 
 class DynamicJSONFSM:
-    def __init__(self, function_definitions: List[Dict[str, Any]]):
-        # Indexation des fonctions pour une recherche O(1)
-        self.functions = {f["name"]: f for f in function_definitions}
+    def __init__(self, function_definitions: List[FunctionDefinition]):
+        # Indexation des objets FunctionDefinition pour une recherche O(1)
+        self.functions = {f.fn_name: f for f in function_definitions}
         self.prefix_start = '{"function_name": "'
         self.prefix_args = '", "arguments": {'
 
@@ -50,12 +50,13 @@ class DynamicJSONFSM:
         args_text = text[len(expected_prefix):]
         func_def = self.functions[fn_name]
 
-        parameters = func_def["parameters"]
-        arg_names = list(parameters)
+        # Utilisation des attributs du BaseModel Pydantic
+        arg_names = func_def.args_names
         arg_types = {
-            arg_name: self._normalise_type(arg_definition["type"])
-            for arg_name, arg_definition in parameters.items()
+            arg_name: self._normalise_type(arg_type)
+            for arg_name, arg_type in func_def.args_types.items()
         }
+
         return self._trace_arguments(args_text, arg_names, arg_types)
 
     @staticmethod
@@ -77,7 +78,7 @@ class DynamicJSONFSM:
         current_idx = 0
 
         for i, arg_name in enumerate(arg_names):
-            # recup de la cle de l'argement
+            # recup de la cle de l'argument
             key_str = f'"{arg_name}": '
             if current_idx + len(key_str) > len(args_text):
                 remaining = key_str[len(args_text) - current_idx:]
@@ -199,7 +200,7 @@ class DynamicJSONFSM:
                             return [b_val[len(remaining)]]
                     return []
 
-        # fermetur JSON
+        # fermeture JSON
         if current_idx == len(args_text):
             return ['}']
         elif (current_idx + 1 == len(args_text)
