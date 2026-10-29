@@ -1,0 +1,6 @@
+uv run python -m moulinette prepare_exercises --output ../../data --set public
+cd moulinette
+
+uv run python -m moulinette grade_student_answers \
+  ../../data/output/function_calling_results.json \
+  --set public

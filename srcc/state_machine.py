@@ -1,19 +1,23 @@
-from typing import List, Dict, Any
+import json
+import re
+from typing import List, Dict, Any, Optional
 from srcc.models import FunctionDefinition
 
 class DynamicJSONFSM:
     def __init__(self, function_definitions: List[FunctionDefinition]):
         # Indexation des objets FunctionDefinition pour une recherche O(1)
         self.functions = {f.fn_name: f for f in function_definitions}
-        self.prefix_start = '{"function_name": "'
-        self.prefix_args = '", "arguments": {'
+        self.prefix_start = '{"name": "'
+        self.prefix_args = '", "parameters": {'
 
         # Base de caractères pour les chaînes de caractères (str)
         self.string_chars = ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLM"
                              + "NOPQRSTUVWXYZ0123456789 _-.,!?@#$%^&"
                              + "*()[]{}+=|\\/<>")
 
-    def get_allowed_characters(self, current_text: str) -> List[str]:
+    def get_allowed_characters(
+        self, current_text: str, question: Optional[str] = None
+    ) -> List[str]:
         text = current_text.lstrip()
 
         # Prefix fn
@@ -56,8 +60,70 @@ class DynamicJSONFSM:
             arg_name: self._normalise_type(arg_type)
             for arg_name, arg_type in func_def.args_types.items()
         }
+        string_literals = self._extract_string_literals(
+            question, arg_names, arg_types
+        )
 
-        return self._trace_arguments(args_text, arg_names, arg_types)
+        return self._trace_arguments(
+            args_text, arg_names, arg_types, string_literals
+        )
+
+    @staticmethod
+    def _extract_string_literals(
+        question: Optional[str],
+        arg_names: List[str],
+        arg_types: Dict[str, str],
+    ) -> Dict[str, str]:
+        if not question:
+            return {}
+
+        string_names = [
+            name for name in arg_names if arg_types.get(name) == "str"
+        ]
+        literals: Dict[str, str] = {}
+        path_parameter = next(
+            (
+                name for name in string_names
+                if any(term in name.lower()
+                       for term in ("path", "file", "location"))
+            ),
+            None,
+        )
+        path_match = re.search(
+            r"""(?<!\w)(?:[A-Za-z]:\\[^\s]+|/[^\s]+)""", question
+        )
+        if path_parameter and path_match:
+            literals[path_parameter] = path_match.group(0).rstrip(".,!?")
+
+        if len(string_names) == 1 and ":" in question:
+            if string_names[0] not in literals:
+                return {string_names[0]: question.split(":", 1)[1].lstrip()}
+
+        quoted_values = [
+            match.group(2)
+            for match in re.finditer(r"""(?<!\w)(["'])(.*?)\1""", question)
+        ]
+        if not quoted_values:
+            return literals
+
+        source_name = next(
+            (
+                name for name in string_names
+                if any(term in name.lower()
+                       for term in ("source", "text", "content", "query"))
+            ),
+            None,
+        )
+        if source_name and len(quoted_values) > 1:
+            literals[source_name] = max(quoted_values, key=len)
+            quoted_values.remove(literals[source_name])
+
+        remaining_names = [
+            name for name in string_names if name not in literals
+        ]
+        literals.update(dict(zip(remaining_names, quoted_values)))
+
+        return literals
 
     @staticmethod
     def _normalise_type(arg_type: str) -> str:
@@ -72,7 +138,8 @@ class DynamicJSONFSM:
 
     def _trace_arguments(self, args_text: str,
                          arg_names: List[str],
-                         arg_types: Dict[str, str]) -> List[str]:
+                         arg_types: Dict[str, str],
+                         string_literals: Dict[str, str]) -> List[str]:
         """Analyse le texte généré pour savoir exactement
         où l'on en est dans la séquence des arguments."""
         current_idx = 0
@@ -107,6 +174,13 @@ class DynamicJSONFSM:
                     current_idx += 1
 
                 if current_idx < len(args_text):
+                    value = args_text[val_start:current_idx]
+                    if arg_type == "float" and (
+                        "." not in value
+                        or value.endswith(".")
+                        or not value.replace(".", "", 1).lstrip("-").isdigit()
+                    ):
+                        return []
                     remaining = args_text[current_idx:]
                     if terminator.startswith(remaining):
                         if len(remaining) < len(terminator):
@@ -120,13 +194,29 @@ class DynamicJSONFSM:
                     else:
                         return []
                 else:
+                    value = args_text[val_start:current_idx]
+                    if current_idx == val_start:
+                        return list(allowed_chars)
+
+                    if arg_type == "float":
+                        if value == "-":
+                            return list(set("0123456789"))
+                        if "." not in value:
+                            if value.isdigit() or (
+                                value.startswith("-")
+                                and value[1:].isdigit()
+                            ):
+                                return list(set("0123456789."))
+                            return []
+                        if value.endswith("."):
+                            return list(set("0123456789"))
+                        if value.replace(".", "", 1).lstrip("-").isdigit():
+                            return list(set("0123456789") | {terminator[0]})
+                        return []
+
                     ans = list(allowed_chars)
-                    if (current_idx > val_start
-                            and args_text[val_start:current_idx]
-                            not in ("-", ".")):
+                    if value not in ("-", "."):
                         ans.append(terminator[0])
-                    elif current_idx == val_start:
-                        return list(set(ans))
                     return list(set(ans))
 
             elif arg_type == "str":
@@ -135,6 +225,34 @@ class DynamicJSONFSM:
                 if args_text[current_idx] != '"':
                     return []
                 current_idx += 1
+
+                literal = string_literals.get(arg_name)
+                if literal is not None:
+                    escaped_literal = json.dumps(
+                        literal, ensure_ascii=False
+                    )[1:-1]
+                    generated = args_text[current_idx:]
+                    if escaped_literal.startswith(generated):
+                        if len(generated) < len(escaped_literal):
+                            return [escaped_literal[len(generated)]]
+                        return ['"']
+                    if not generated.startswith(escaped_literal):
+                        return []
+                    remaining = generated[len(escaped_literal):]
+                    if not remaining.startswith('"'):
+                        return []
+                    remaining = remaining[1:]
+                    if not remaining:
+                        return [terminator[0]]
+                    if terminator.startswith(remaining):
+                        if len(remaining) < len(terminator):
+                            return [terminator[len(remaining)]]
+                        current_idx += len(escaped_literal) + 1 + len(terminator)
+                        continue
+                    if remaining.startswith(terminator):
+                        current_idx += len(escaped_literal) + 1 + len(terminator)
+                        continue
+                    return []
 
                 string_closed = False
                 in_escape = False
@@ -151,6 +269,13 @@ class DynamicJSONFSM:
                     current_idx += 1
 
                 if not string_closed:
+                    if args_text.endswith("\\\\"):
+                        return [
+                            char for char in self.string_chars
+                            if char != "\\"
+                        ] + ['"']
+                    if args_text.endswith("\\"):
+                        return ['\\']
                     return list(self.string_chars) + ['"']
 
                 if current_idx < len(args_text):

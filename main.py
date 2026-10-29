@@ -4,6 +4,7 @@ import re
 import sys
 
 from llm_sdk.llm_sdk import Small_LLM_Model
+from src.models import FunctionDefinition
 from srcc.state_machine import DynamicJSONFSM
 
 MODEL_NAME = "Qwen/Qwen3-0.6B"
@@ -25,6 +26,13 @@ def construire_prompt_systeme(fonctions: list) -> str:
     prompt += "4. Copy string arguments exactly from the user input.\n"
     prompt += "5. Do not paraphrase, normalize, expand, or rewrite string arguments.\n"
     prompt += "6. Preserve apostrophes, capitalization, spaces, and punctuation exactly.\n\n"
+    prompt += """7. For every argument whose type is "number", always output a decimal notation.
+            Even whole numbers must include ".0".
+            Examples:
+            - 3 must be written as 3.0
+            - 5 must be written as 5.0
+            - 12.5 remains 12.5
+            Do not output integer notation for values of type "number"."""
 
     prompt += "Available functions:\n"
 
@@ -170,7 +178,7 @@ def generer_appel_fonction(model, fsm, id_to_text, vocab_size, system_prompt, qu
 
     def get_allowed_cached(text):
         if text not in fsm_cache:
-            fsm_cache[text] = fsm.get_allowed_characters(text)
+            fsm_cache[text] = fsm.get_allowed_characters(text, question)
         return fsm_cache[text]
 
     for _ in range(max_tokens):
@@ -257,7 +265,19 @@ def main():
     try:
         print(f"Chargement du modèle d'IA ({MODEL_NAME})...")
         model = Small_LLM_Model(model_name=MODEL_NAME)
-        fsm = DynamicJSONFSM(schema)
+        function_definitions = [
+            FunctionDefinition(
+                fn_name=function["name"],
+                args_names=list(function["parameters"]),
+                args_types={
+                    name: definition["type"]
+                    for name, definition in function["parameters"].items()
+                },
+                return_type=function["returns"]["type"],
+            )
+            for function in schema
+        ]
+        fsm = DynamicJSONFSM(function_definitions)
         system_prompt = construire_prompt_systeme(schema)
 
         print("Préparation du dictionnaire de tokens...")
@@ -310,33 +330,34 @@ def main():
         except Exception as e:
             print(f"\n[Statut] : ❌ Erreur inattendue : {str(e)}")
             parsed_result = {"error": f"Exception: {str(e)}"}
-
-        if (
-            isinstance(parsed_result, dict)
-            and isinstance(parsed_result.get("function_name"), str)
-            and isinstance(parsed_result.get("arguments"), dict)
-        ):
-            resultats.append({
-                "prompt": question,
-                "name": parsed_result["function_name"],
-                "parameters": preserver_arguments_litteraux(
-                    parsed_result["function_name"],
-                    normaliser_parametres(
-                        parsed_result["function_name"],
-                        parsed_result["arguments"],
-                        schema,
-                    ),
-                    question,
-                    schema,
-                ),
-            })
-        else:
-            # Keep generation errors explicit while using the same top-level
-            # structure as successful results.
-            resultats.append({
-                "prompt": question,
-                "error": parsed_result,
-            })
+        parsed_result["prompt"] = question
+        resultats.append(parsed_result)
+        #if (
+        #    isinstance(parsed_result, dict)
+        #    and isinstance(parsed_result.get("function_name"), str)
+        #    and isinstance(parsed_result.get("arguments"), dict)
+        #):
+        #    resultats.append({
+        #        "prompt": question,
+        #        "name": parsed_result["function_name"],
+        #        "parameters": preserver_arguments_litteraux(
+        #            parsed_result["function_name"],
+        #            normaliser_parametres(
+        #                parsed_result["function_name"],
+        #                parsed_result["arguments"],
+        #                schema,
+        #            ),
+        #            question,
+        #            schema,
+        #        ),
+        #    })
+        #else:
+        #    # Keep generation errors explicit while using the same top-level
+        #    # structure as successful results.
+        #    resultats.append({
+        #        "prompt": question,
+        #        "error": parsed_result,
+        #    })
 
     print("\n" + "="*50)
     print("SAUVEGARDE DES RÉSULTATS")
