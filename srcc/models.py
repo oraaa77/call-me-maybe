@@ -2,12 +2,11 @@ from pydantic import BaseModel
 from typing import Dict, List
 
 # 1. Modèle pour "functions_definition.json"
+
 class Argument(BaseModel):
     name: str
     type: str
 
-class Returns(BaseModel):
-    returns: str
 
 class FunctionDefinition(BaseModel):
     name: str

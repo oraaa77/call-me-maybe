@@ -76,20 +76,6 @@ class Call_Me_Maybe(Small_LLM_Model):
 
         return prompt
 
-#class Call_Me_Maybe(Small_LLM_Model):
-#    def __init__(self, data: Parser, model_name: str = "Qwen/Qwen3-0.6B") -> None:
-#        super().__init__(model_name=model_name)
-#        self.data_parser = data
-#        self.functions = data.functions
-#        self.tests = data.tests
-#        self.raw_schema = data.raw_schema
-#        self.fsm = DynamicJSONFSM(self.raw_schema)
-
-#        # Optimization caches
-#        self.char_to_tokens: Dict[str, List[int]] = {}
-#        self.id_to_text: List[str] = []
-#        self._init_vocabulary()
-
     def _init_vocabulary(self):
         """Initialise le vocabulaire et l'indexation rapide."""
         print("Préparation du dictionnaire de tokens...")
@@ -106,38 +92,38 @@ class Call_Me_Maybe(Small_LLM_Model):
                     self.char_to_tokens[first_char] = []
                 self.char_to_tokens[first_char].append(token_id)
 
-    def normalize_parameters(self, function_name: str, arguments: dict) -> dict:
-        function_definition = next((fn for fn in self.functions if fn.fn_name == function_name), None)
+    #def normalize_parameters(self, function_name: str, arguments: dict) -> dict:
+    #    function_definition = next((fn for fn in self.functions if fn.fn_name == function_name), None)
 
-        if not function_definition:
-            return arguments
+    #    if not function_definition:
+    #        return arguments
 
-        normalised = dict(arguments)
+    #    normalised = dict(arguments)
 
-        for arg_name, arg_type in function_definition.args_types.items():
-            if (arg_type == "number" # ou "float" selon comment vous l'avez défini
-                and arg_name in normalised
-                and not isinstance(normalised[arg_name], bool)):
-                normalised[arg_name] = float(normalised[arg_name])
+    #    for arg_name, arg_type in function_definition.args_types.items():
+    #        if (arg_type == "number" # ou "float" selon comment vous l'avez défini
+    #            and arg_name in normalised
+    #            and not isinstance(normalised[arg_name], bool)):
+    #            normalised[arg_name] = float(normalised[arg_name])
 
-        return normalised
+    #    return normalised
 
-    def preserve_literal_arguments(self, function_name: str, arguments: dict, question: str) -> dict:
-        # 1. On cherche dans self.functions avec l'attribut .fn_name
-        function_definition = next((fn for fn in self.functions if fn.fn_name == function_name), None)
-        if not function_definition:
-            return arguments
+    #def preserve_literal_arguments(self, function_name: str, arguments: dict, question: str) -> dict:
+    #    # 1. On cherche dans self.functions avec l'attribut .fn_name
+    #    function_definition = next((fn for fn in self.functions if fn.fn_name == function_name), None)
+    #    if not function_definition:
+    #        return arguments
 
-        # 2. On utilise l'attribut .args_types de l'objet Pydantic
-        string_parameters = [
-            arg_name for arg_name, arg_type in function_definition.args_types.items()
-            if arg_type == "string"
-        ]
+    #    # 2. On utilise l'attribut .args_types de l'objet Pydantic
+    #    string_parameters = [
+    #        arg_name for arg_name, arg_type in function_definition.args_types.items()
+    #        if arg_type == "string"
+    #    ]
 
-        if not string_parameters:
-            return arguments
+    #    if not string_parameters:
+    #        return arguments
 
-        preserved = dict(arguments)
+    #    preserved = dict(arguments)
 
         # --- Le reste de la logique Regex ne change pas ---
 

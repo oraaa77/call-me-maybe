@@ -4,7 +4,7 @@ import re
 import sys
 
 from llm_sdk.llm_sdk import Small_LLM_Model
-from src.models import FunctionDefinition
+from srcc.models import Argument, FunctionDefinition
 from srcc.state_machine import DynamicJSONFSM
 
 MODEL_NAME = "Qwen/Qwen3-0.6B"
@@ -267,13 +267,13 @@ def main():
         model = Small_LLM_Model(model_name=MODEL_NAME)
         function_definitions = [
             FunctionDefinition(
-                fn_name=function["name"],
-                args_names=list(function["parameters"]),
-                args_types={
-                    name: definition["type"]
+                name=function["name"],
+                description=function.get("description", ""),
+                parameters=[
+                    Argument(name=name, type=definition["type"])
                     for name, definition in function["parameters"].items()
-                },
-                return_type=function["returns"]["type"],
+                ],
+                returns=function["returns"]["type"],
             )
             for function in schema
         ]

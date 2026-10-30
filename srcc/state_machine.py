@@ -6,7 +6,7 @@ from srcc.models import FunctionDefinition
 class DynamicJSONFSM:
     def __init__(self, function_definitions: List[FunctionDefinition]):
         # Indexation des objets FunctionDefinition pour une recherche O(1)
-        self.functions = {f.fn_name: f for f in function_definitions}
+        self.functions = {f.name: f for f in function_definitions}
         self.prefix_start = '{"name": "'
         self.prefix_args = '", "parameters": {'
 
@@ -55,10 +55,10 @@ class DynamicJSONFSM:
         func_def = self.functions[fn_name]
 
         # Utilisation des attributs du BaseModel Pydantic
-        arg_names = func_def.args_names
+        arg_names = [argument.name for argument in func_def.parameters]
         arg_types = {
-            arg_name: self._normalise_type(arg_type)
-            for arg_name, arg_type in func_def.args_types.items()
+            argument.name: self._normalise_type(argument.type)
+            for argument in func_def.parameters
         }
         string_literals = self._extract_string_literals(
             question, arg_names, arg_types
